@@ -1,0 +1,58 @@
+# Backend Django Ninja. A imagem 'tcc-sso-backend:latest' precisa estar
+# disponivel no cluster — importada via 'k3d image import' (ver scripts/).
+# imagePullPolicy: IfNotPresent garante que o k8s use a imagem ja carregada
+# sem tentar puxar de um registry externo.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: tcc-sso
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: tcc-sso-backend:latest
+          imagePullPolicy: IfNotPresent
+          command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+          envFrom:
+            - configMapRef:
+                name: tcc-config
+            - secretRef:
+                name: tcc-secrets
+          env:
+            # DATABASE_URL e montada a partir das outras vars (substituicao $(VAR) do k8s)
+            - name: DATABASE_URL
+              value: "postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres:5432/$(POSTGRES_DB)"
+          ports:
+            - containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: tcc-sso
+spec:
+  type: NodePort
+  selector:
+    app: backend
+  ports:
+    - port: 8000
+      targetPort: 8000
+      nodePort: 30800

@@ -20,10 +20,18 @@
       "clientAuthenticatorType": "client-secret",
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": true,
-      "redirectUris": ["http://localhost:18000/api/auth/callback"],
-      "webOrigins": ["http://localhost:5173", "http://localhost:18000"],
+      "redirectUris": [
+        "http://localhost:18000/api/auth/callback",
+        "http://localhost:28000/api/auth/callback"
+      ],
+      "webOrigins": [
+        "http://localhost:5173",
+        "http://localhost:18000",
+        "http://localhost:25173",
+        "http://localhost:28000"
+      ],
       "attributes": {
-        "post.logout.redirect.uris": "http://localhost:5173"
+        "post.logout.redirect.uris": "http://localhost:5173##http://localhost:25173"
       }
     }
   ],

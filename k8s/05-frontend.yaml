@@ -1,0 +1,46 @@
+# Frontend Vue 3 + Vite em modo dev (mesmo padrao do docker-compose).
+# Em producao real, faria sentido buildar com 'npm run build' e servir via Nginx.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: tcc-sso
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: tcc-sso-frontend:latest
+          imagePullPolicy: IfNotPresent
+          command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+          ports:
+            - containerPort: 5173
+          readinessProbe:
+            tcpSocket:
+              port: 5173
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { cpu: 300m, memory: 384Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: tcc-sso
+spec:
+  type: NodePort
+  selector:
+    app: frontend
+  ports:
+    - port: 5173
+      targetPort: 5173
+      nodePort: 30173

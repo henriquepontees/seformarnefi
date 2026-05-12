@@ -164,3 +164,40 @@ Estrutura completa entregue. Próximo passo é validar `doppler run -- docker co
 
 ### Observações
 Pipeline comparativo pronto: `main` passa nos 3 estágios (Bandit 0 issues), `demo/vulneravel` falha com 2 issues médios/altos no Bandit + 3 testes provando exploração viva. Exploit do endpoint admin retorna `db_password` e `api_key` ao curl, demonstrando o impacto.
+
+---
+
+## Sessão 5 — 12/05/2026
+
+### Arquivos criados
+| Arquivo | Caminho | Descrição |
+|---|---|---|
+| `00-namespace.yaml` | `k8s/` | Namespace `tcc-sso` |
+| `01-config.yaml` | `k8s/` | ConfigMap (vars não sensíveis) + Secret (credenciais) |
+| `02-postgres.yaml` | `k8s/` | PVC + Deployment + Service do Postgres |
+| `03-keycloak.yaml` | `k8s/` | ConfigMap com realm.json embedado + Deployment + Service NodePort 30180 |
+| `04-backend.yaml` | `k8s/` | Deployment (imagem local) + Service NodePort 30800 |
+| `05-frontend.yaml` | `k8s/` | Deployment (imagem local) + Service NodePort 30173 |
+| `application.yaml` | `argocd/` | Application CR apontando para `k8s/` do repo (auto-sync + selfHeal) |
+| `setup.ps1` | `k8s/` | Script PowerShell que cria cluster k3d + ArgoCD + Application em 1 comando |
+| `K8S.md` | `/` | Guia completo: pré-requisitos, setup, endpoints, fluxo GitOps, troubleshooting |
+
+### Arquivos editados
+| Arquivo | Caminho | O que mudou |
+|---|---|---|
+| `realm.json` | `keycloak/` | redirectUris e webOrigins agora aceitam URLs do compose **e** do k8s |
+| `changelog.md` | `.claude/` | Entrada da Sessão 5 |
+
+### Arquivos deletados
+— nenhum —
+
+### Decisões tomadas
+- **Single-repo GitOps**: manifestos no mesmo repo do código, não em repo separado, para simplificar
+- ArgoCD `syncPolicy.automated` com `prune` + `selfHeal` — repo é fonte única de verdade
+- NodePorts dedicados (30173/30800/30180/30443) mapeados via k3d para portas distintas das do compose (25173/28000/28180/28443) — permite rodar os dois ambientes sem reconfigurar
+- Realm Keycloak agora declara redirect URIs dos dois ambientes em uma única `realm.json` (válida para compose e k8s)
+- Secret em texto plano no Git **assumido como limitação acadêmica** — documentado em K8S.md o caminho para Sealed Secrets/Vault em produção real
+- Imagens locais importadas via `k3d image import` em vez de exigir registry (Docker Hub, GHCR)
+
+### Observações
+k3d não está instalado no host. K8S.md tem instruções de instalação via Chocolatey/Scoop. O `setup.ps1` automatiza todo o resto (cluster, imagens, ArgoCD, Application) em um comando depois que o k3d estiver disponível.

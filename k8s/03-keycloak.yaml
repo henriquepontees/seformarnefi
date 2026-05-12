@@ -1,0 +1,126 @@
+# Keycloak com o realm "tcc" importado de um ConfigMap montado em
+# /opt/keycloak/data/import. KC_HOSTNAME aponta para a URL publica
+# que sera observada na claim "iss" dos tokens.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-realm
+  namespace: tcc-sso
+data:
+  realm.json: |
+    {
+      "realm": "tcc",
+      "enabled": true,
+      "sslRequired": "none",
+      "registrationAllowed": false,
+      "loginWithEmailAllowed": true,
+      "bruteForceProtected": true,
+      "accessTokenLifespan": 300,
+      "clients": [
+        {
+          "clientId": "tcc-backend",
+          "name": "TCC Backend",
+          "secret": "tcc-backend-secret",
+          "enabled": true,
+          "publicClient": false,
+          "protocol": "openid-connect",
+          "clientAuthenticatorType": "client-secret",
+          "standardFlowEnabled": true,
+          "directAccessGrantsEnabled": true,
+          "redirectUris": [
+            "http://localhost:18000/api/auth/callback",
+            "http://localhost:28000/api/auth/callback"
+          ],
+          "webOrigins": [
+            "http://localhost:5173",
+            "http://localhost:18000",
+            "http://localhost:25173",
+            "http://localhost:28000"
+          ],
+          "attributes": {
+            "post.logout.redirect.uris": "http://localhost:5173##http://localhost:25173"
+          }
+        }
+      ],
+      "users": [
+        {
+          "username": "henrique",
+          "enabled": true,
+          "email": "henrique@tcc.com",
+          "emailVerified": true,
+          "firstName": "Henrique",
+          "lastName": "Pontes",
+          "credentials": [
+            { "type": "password", "value": "tcc123", "temporary": false }
+          ]
+        }
+      ]
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  namespace: tcc-sso
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: keycloak
+  template:
+    metadata:
+      labels:
+        app: keycloak
+    spec:
+      containers:
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:25.0
+          args: ["start-dev", "--import-realm"]
+          env:
+            - name: KEYCLOAK_ADMIN
+              value: admin
+            - name: KEYCLOAK_ADMIN_PASSWORD
+              value: admin
+            - name: KC_HOSTNAME
+              value: localhost
+            - name: KC_HOSTNAME_PORT
+              value: "28180"
+            - name: KC_HOSTNAME_STRICT
+              value: "false"
+            - name: KC_HOSTNAME_STRICT_HTTPS
+              value: "false"
+            - name: KC_HTTP_ENABLED
+              value: "true"
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: realm
+              mountPath: /opt/keycloak/data/import
+          readinessProbe:
+            httpGet:
+              path: /realms/master
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 12
+          resources:
+            requests: { cpu: 200m, memory: 384Mi }
+            limits: { cpu: 1, memory: 1Gi }
+      volumes:
+        - name: realm
+          configMap:
+            name: keycloak-realm
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+  namespace: tcc-sso
+spec:
+  type: NodePort
+  selector:
+    app: keycloak
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: 30180

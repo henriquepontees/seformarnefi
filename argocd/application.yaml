@@ -1,0 +1,35 @@
+# ArgoCD Application — declaracao do que o ArgoCD deve manter sincronizado.
+#
+# Como funciona:
+# 1. ArgoCD le este Application e aprende: "monitorar o path k8s/ do repo X"
+# 2. A cada minuto (ou no webhook do GitHub), compara estado no Git vs cluster
+# 3. Se houver diferenca: syncOptions.automated faz o apply automatico
+#
+# Esse e o coracao do GitOps: o repo Git e a unica fonte de verdade.
+# Mudancas no cluster fora do Git serao desfeitas (selfHeal: true).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tcc-sso
+  namespace: argocd
+  finalizers:
+    # Garante que ao deletar a Application, todos os recursos sao removidos
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/henriquepontees/seformarnefi.git
+    targetRevision: main
+    path: k8s
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tcc-sso
+  syncPolicy:
+    automated:
+      # prune: remove do cluster recursos que sairam do Git
+      prune: true
+      # selfHeal: re-aplica se alguem editar manualmente o cluster
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

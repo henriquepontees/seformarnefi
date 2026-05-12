@@ -1,0 +1,6 @@
+# Namespace dedicado para todos os recursos do projeto.
+# ArgoCD cria esse namespace automaticamente via syncOption CreateNamespace=true.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tcc-sso
