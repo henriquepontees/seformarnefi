@@ -14,15 +14,15 @@ services:
     ports:
       - "5432:5432"
     healthcheck:
-      # Backend só sobe depois que o Postgres estiver aceitando conexões
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      # Especifica o banco correto para evitar "database does not exist" nos logs
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   backend:
     build: ./backend
-    command: python manage.py runserver 0.0.0.0:8000
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
     env_file: .env
     environment:
       # DATABASE_URL é montada aqui pois depende de outras vars do .env
