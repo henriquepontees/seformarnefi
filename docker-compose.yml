@@ -48,6 +48,24 @@ services:
     depends_on:
       - backend
 
+  keycloak:
+    # Provedor OIDC. Importa o realm "tcc" do volume na inicialização.
+    # KC_HOSTNAME define a URL pública usada na claim "iss" dos tokens.
+    image: quay.io/keycloak/keycloak:25.0
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_PORT: 8180
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+      KC_HTTP_ENABLED: "true"
+    volumes:
+      - ./keycloak/realm.json:/opt/keycloak/data/import/realm.json:ro
+    ports:
+      - "8180:8080"
+
   zap:
     # OWASP ZAP em modo daemon — o pipeline aponta para http://zap:8080
     # api.disablekey=true simplifica o uso em ambiente local/CI controlado

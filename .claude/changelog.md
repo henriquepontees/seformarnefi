@@ -91,3 +91,43 @@ Sessão de planejamento. Nenhum código do projeto foi escrito ainda.
 
 ### Observações
 Estrutura completa entregue. Próximo passo é validar `doppler run -- docker compose up --build`, escrever testes reais do fluxo SSO e fazer o primeiro commit/push para o repositório no GitHub.
+
+---
+
+## Sessão 3 — 12/05/2026
+
+### Arquivos criados
+| Arquivo | Caminho | Descrição |
+|---|---|---|
+| `realm.json` | `keycloak/` | Realm `tcc` pré-configurado com client `tcc-backend` e usuário `henrique` |
+| `oauth.py` | `backend/apps/sso/` | Cliente OAuth/OIDC: authorize URL, troca de code, validação via JWKS |
+| `test_oauth.py` | `backend/tests/` | 4 testes do fluxo OAuth com mock das chamadas ao Keycloak |
+| `COMANDOS.md` | `/` | Referência de comandos do dia a dia (criado na sessão; ampliado aqui) |
+
+### Arquivos editados
+| Arquivo | Caminho | O que mudou |
+|---|---|---|
+| `docker-compose.yml` | `/` | Serviço `keycloak` adicionado (Keycloak 25 + import do realm) |
+| `api.py` | `backend/apps/sso/` | Endpoints `/auth/login`, `/auth/callback`, `/auth/logout` |
+| `jwt_utils.py` | `backend/apps/sso/` | Funções `emitir_token` e `revogar_token` |
+| `settings.py` | `backend/config/` | `corsheaders` + `CORS_ALLOWED_ORIGINS` para o Vue |
+| `requirements.txt` | `backend/` | + `django-cors-headers`, `requests`, `PyJWT[crypto]` |
+| `App.vue` | `frontend/src/` | UI completa: login, exibição de claims, logout |
+| `.env` / `.env.example` | `/` | Variáveis OAuth (issuer público + internal, client, redirect, frontend) |
+| `README.md` | `/` | Documentado o fluxo SSO ponta a ponta e o admin do Keycloak |
+| `COMANDOS.md` | `/` | Seção Keycloak adicionada |
+| `changelog.md` | `.claude/` | Entrada da Sessão 3 |
+
+### Arquivos deletados
+— nenhum —
+
+### Decisões tomadas
+- Provedor OIDC: **Keycloak 25** no compose, com realm importado via volume na inicialização
+- Backend re-emite JWT próprio (HS256) após validar o ID token (RS256) do Keycloak — cliente nunca vê tokens do provedor
+- Separação `OAUTH_ISSUER` (URL pública, vai na claim `iss`) vs `OAUTH_INTERNAL` (URL na rede Docker) para resolver mismatch frontchannel/backchannel
+- Token entregue ao frontend via **URL fragment** (`#token=`) — não vaza em logs/Referer
+- Proteção CSRF do callback via `state` aleatório guardado no cache do Django com TTL de 5min
+- Frontend sem `vue-router`: uma única `App.vue` com renderização condicional baseada em `localStorage`
+
+### Observações
+14 testes passando (4 novos do OAuth, com mock de `exchange_code` e `validar_id_token`). Fluxo end-to-end validado: `GET /api/auth/login` responde 302 para o Keycloak com state válido. Usuário de teste pré-criado: `henrique` / `tcc123`.

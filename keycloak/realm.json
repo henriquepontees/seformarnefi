@@ -1,0 +1,43 @@
+{
+  "realm": "tcc",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "accessTokenLifespan": 300,
+  "clients": [
+    {
+      "clientId": "tcc-backend",
+      "name": "TCC Backend",
+      "secret": "tcc-backend-secret",
+      "enabled": true,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "clientAuthenticatorType": "client-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["http://localhost:18000/api/auth/callback"],
+      "webOrigins": ["http://localhost:5173", "http://localhost:18000"],
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:5173"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "henrique",
+      "enabled": true,
+      "email": "henrique@tcc.com",
+      "emailVerified": true,
+      "firstName": "Henrique",
+      "lastName": "Pontes",
+      "credentials": [
+        {"type": "password", "value": "tcc123", "temporary": false}
+      ]
+    }
+  ]
+}

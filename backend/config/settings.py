@@ -15,12 +15,20 @@ ALLOWED_HOSTS = ["*"]  # Restringir em produção
 
 INSTALLED_APPS = [
     "django.contrib.contenttypes",
+    "corsheaders",
     "apps.sso",
 ]
 
 MIDDLEWARE = [
+    # CORS deve vir antes do CommonMiddleware para responder preflight requests
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.middleware.common.CommonMiddleware",
+]
+
+# Frontend Vue roda em outra porta — precisa permissão de CORS para chamar a API
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
 ]
 
 ROOT_URLCONF = "config.urls"

@@ -152,6 +152,26 @@ docker run --rm --network tcc-sso_default \
     zaproxy/zap-stable zap-baseline.py -t http://backend:8000
 ```
 
+## 🔑 Keycloak
+
+```bash
+# Admin console (admin / admin)
+# http://localhost:8180
+
+# Verifica se o realm "tcc" está disponível (deve retornar JSON)
+curl http://localhost:8180/realms/tcc/.well-known/openid-configuration
+
+# Listar usuários do realm via API admin (requer pegar token admin antes)
+curl -s -X POST http://localhost:8180/realms/master/protocol/openid-connect/token \
+  -d "client_id=admin-cli" -d "grant_type=password" \
+  -d "username=admin" -d "password=admin" | jq -r .access_token
+
+# Re-importar o realm (apaga estado existente — útil em dev)
+docker compose restart keycloak
+```
+
+Usuário de teste: **`henrique` / `tcc123`**
+
 ## 🩺 Troubleshooting rápido
 
 ```bash

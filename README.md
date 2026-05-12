@@ -22,6 +22,30 @@ docker compose up --build
 
 - Backend: http://localhost:18000/api/health
 - Frontend: http://localhost:5173
+- Keycloak admin: http://localhost:8180 (`admin` / `admin`)
+
+## Fluxo SSO
+
+```
+Vue (5173)  --click "Entrar"-->  Backend /api/auth/login
+                                          |
+                                          v
+                          302 -> Keycloak /auth (8180)
+                                          |
+                          usuário faz login: henrique / tcc123
+                                          |
+                          302 -> Backend /api/auth/callback?code=...&state=...
+                                          |
+                          backend troca code por tokens em keycloak:8080
+                          backend valida ID token via JWKS
+                          backend emite JWT próprio (HS256)
+                                          |
+                          302 -> Vue (5173)/#token=...
+                                          |
+                          Vue salva token, chama /api/me com Bearer
+```
+
+Usuário de teste pré-configurado no realm: **`henrique` / `tcc123`**
 
 ## Variáveis de ambiente
 
