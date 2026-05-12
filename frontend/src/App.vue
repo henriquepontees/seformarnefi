@@ -1,28 +1,27 @@
 <script setup>
 import { ref, onMounted } from "vue";
 
-const API = "http://localhost:18000";
-
+// URLs sao relativas — o Vite dev server faz proxy para o backend.
+// Isso elimina hardcode de porta e funciona em compose e k8s sem mudanca.
 const token = ref(localStorage.getItem("tcc_token"));
 const user = ref(null);
 const erro = ref(null);
 
 onMounted(async () => {
-  // Após o redirect do callback, o JWT vem no fragment da URL.
-  // Fragment é local ao navegador — não vai para logs HTTP do servidor.
+  // Apos o redirect do callback, o JWT vem no fragment da URL.
+  // Fragment e local ao navegador — nao vai para logs HTTP do servidor.
   if (window.location.hash.startsWith("#token=")) {
     const t = window.location.hash.replace("#token=", "");
     localStorage.setItem("tcc_token", t);
     token.value = t;
-    // Limpa o hash para não vazar o token na barra de endereços
+    // Limpa o hash para nao vazar o token na barra de enderecos
     window.history.replaceState({}, "", window.location.pathname);
   }
   if (token.value) await buscarUsuario();
 });
 
 async function buscarUsuario() {
-  // Bate no endpoint protegido /api/me com o JWT no header Authorization
-  const res = await fetch(`${API}/api/me`, {
+  const res = await fetch("/api/me", {
     headers: { Authorization: `Bearer ${token.value}` },
   });
   if (res.ok) {
@@ -34,14 +33,15 @@ async function buscarUsuario() {
 }
 
 function entrar() {
-  // Redireciona ao backend, que por sua vez redireciona ao Keycloak
-  window.location.href = `${API}/api/auth/login`;
+  // Navegacao same-origin: o Vite proxy encaminha pro backend, que
+  // responde 302 para o Keycloak (rodando em outra porta, mas isso
+  // e visivel pro navegador, nao pro proxy).
+  window.location.href = "/api/auth/login";
 }
 
 async function sair() {
-  // Revoga o JWT no backend e descarta localmente
   if (token.value) {
-    await fetch(`${API}/api/auth/logout`, {
+    await fetch("/api/auth/logout", {
       method: "POST",
       headers: { Authorization: `Bearer ${token.value}` },
     });
