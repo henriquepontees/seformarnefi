@@ -5,6 +5,7 @@ A NinjaAPI é montada em /api/ pelo config/urls.py.
 Fluxo OAuth 2.0 Authorization Code:
 - GET  /api/auth/login    → redireciona ao provedor (Keycloak)
 - GET  /api/auth/callback → recebe code, valida, emite JWT, redireciona ao frontend
+- POST /api/auth/refresh  → renova o JWT antes da expiração (revoga o antigo)
 - POST /api/auth/logout   → revoga o JWT atual
 - GET  /api/me            → exemplo de rota protegida (requer Bearer JWT)
 """
@@ -19,6 +20,7 @@ from ninja.security import HttpBearer
 from .jwt_utils import (
     decodificar_token,
     emitir_token,
+    renovar_token,
     revogar_token,
     verificar_token,
 )
@@ -68,6 +70,12 @@ class LogoutOut(Schema):
     status: str
 
 
+class RefreshOut(Schema):
+    """Resposta do endpoint de refresh — devolve o novo JWT."""
+    token: str
+    expires_in: int
+
+
 # GET /api/health — health check público (sem autenticação).
 # Usado pelo pipeline e pelo frontend para saber quando o backend está pronto.
 @api.get("/health", auth=None)
@@ -109,6 +117,19 @@ def auth_callback(request, code: str, state: str):
     # Token vai na URL fragment (#) — não aparece em logs HTTP nem em Referer
     frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:5173")
     return HttpResponseRedirect(f"{frontend_url}/#token={nosso_jwt}")
+
+
+# POST /api/auth/refresh — emite um novo JWT com TTL renovado.
+# Revoga o token antigo no mesmo passo para evitar uso duplo (replay).
+_REFRESH_TTL = 3600
+
+
+@api.post("/auth/refresh", auth=JWTAuth(), response=RefreshOut)
+def auth_refresh(request):
+    """Troca o JWT atual por um novo com TTL extendido, revogando o antigo."""
+    token_antigo = request.auth["_raw"]
+    novo = renovar_token(token_antigo, novo_ttl_segundos=_REFRESH_TTL)
+    return RefreshOut(token=novo, expires_in=_REFRESH_TTL)
 
 
 # POST /api/auth/logout — revoga o JWT atual.

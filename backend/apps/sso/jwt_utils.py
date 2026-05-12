@@ -80,3 +80,32 @@ def revogar_token(token: str, ttl_segundos: int = 3600) -> None:
         ttl_segundos: por quanto tempo manter no cache de revogados.
     """
     cache.set(f"revogado:{token}", True, timeout=ttl_segundos)
+
+
+def renovar_token(token_antigo: str, novo_ttl_segundos: int = 3600) -> str:
+    """
+    Renova um JWT válido emitindo outro com TTL novo e os mesmos claims.
+    Revoga o token antigo para evitar uso duplo (mitigação de replay).
+
+    Args:
+        token_antigo: JWT válido que será trocado por um novo.
+        novo_ttl_segundos: TTL do novo token. Padrão 1h.
+
+    Returns:
+        String do novo JWT.
+
+    Raises:
+        jwt.PyJWTError se o token antigo for inválido, expirado ou revogado.
+    """
+    # Re-decode com verificação explícita — se falhar, propaga a exceção.
+    # Não basta chamar verificar_token() porque queremos os claims originais.
+    if cache.get(f"revogado:{token_antigo}"):
+        raise jwt.InvalidTokenError("token revogado")
+    claims = jwt.decode(token_antigo, _segredo(), algorithms=[_ALGORITHM])
+
+    # Remove o exp antigo — emitir_token coloca o novo
+    claims.pop("exp", None)
+
+    # Revoga o antigo ANTES de devolver o novo (evita janela de uso duplo)
+    revogar_token(token_antigo, ttl_segundos=novo_ttl_segundos)
+    return emitir_token(claims, ttl_segundos=novo_ttl_segundos)
