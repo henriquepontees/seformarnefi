@@ -1,11 +1,13 @@
 """
 Configuração compartilhada do pytest.
-Garante que os settings do Django sejam carregados com valores de teste.
+Força variáveis de ambiente determinísticas para os testes,
+mesmo quando o container já tiver valores reais injetados via .env.
 """
 import os
 
-# Valores de teste injetados ANTES do Django importar settings.
-os.environ.setdefault("DJANGO_SECRET_KEY", "test-secret")
-os.environ.setdefault("JWT_SECRET", "test-jwt-secret")
-os.environ.setdefault("DATABASE_URL", "sqlite:///test.db")
-os.environ.setdefault("DJANGO_DEBUG", "true")
+# Override (não setdefault) — testes precisam de segredos previsíveis
+# para conseguirem assinar e validar JWTs com a mesma chave.
+os.environ["DJANGO_SECRET_KEY"] = "test-secret"
+os.environ["JWT_SECRET"] = "test-jwt-secret"
+os.environ["DATABASE_URL"] = "sqlite:///test.db"
+os.environ["DJANGO_DEBUG"] = "true"

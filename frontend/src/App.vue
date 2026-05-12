@@ -5,7 +5,7 @@ const status = ref("carregando...");
 
 onMounted(async () => {
   // Verifica se o backend está respondendo. /api/health é público.
-  const res = await fetch("http://localhost:8000/api/health");
+  const res = await fetch("http://localhost:18000/api/health");
   const data = await res.json();
   status.value = data.status;
 });

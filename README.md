@@ -20,7 +20,7 @@ copy .env.example .env     # Windows (cmd)
 docker compose up --build
 ```
 
-- Backend: http://localhost:8000/api/health
+- Backend: http://localhost:18000/api/health
 - Frontend: http://localhost:5173
 
 ## Variáveis de ambiente

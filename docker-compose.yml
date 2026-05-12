@@ -30,7 +30,8 @@ services:
     volumes:
       - ./backend:/app
     ports:
-      - "8000:8000"
+      # Host 18000 para evitar conflito com outros projetos que usam 8000
+      - "18000:8000"
     depends_on:
       db:
         condition: service_healthy
