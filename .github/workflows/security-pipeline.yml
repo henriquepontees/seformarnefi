@@ -1,0 +1,69 @@
+# Pipeline DevSecOps — bloqueia o merge se qualquer estágio de segurança falhar.
+# Estágios sequenciais: Bandit (SAST) -> Pytest (testes) -> OWASP ZAP (DAST)
+name: security-pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  bandit:
+    name: Stage 1 - Bandit (SAST)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Instalar Bandit
+        run: pip install bandit
+      - name: Análise estática do código Python
+        # -ll: falha em severidade média ou alta. -ii: confiança média ou alta.
+        run: bandit -r backend/ -ll -ii
+
+  pytest:
+    name: Stage 2 - Pytest
+    needs: bandit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Instalar dependências
+        run: pip install -r backend/requirements.txt
+      - name: Rodar testes
+        # Segredos de teste vêm dos GitHub Secrets ou do Doppler (preferido).
+        env:
+          DJANGO_SECRET_KEY: ci-test-secret
+          JWT_SECRET: ci-test-jwt
+          DATABASE_URL: sqlite:///test.db
+        working-directory: backend
+        run: pytest
+
+  zap:
+    name: Stage 3 - OWASP ZAP (DAST)
+    needs: pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instalar Doppler CLI
+        uses: dopplerhq/cli-action@v3
+      - name: Subir backend via Doppler + Docker Compose
+        # Doppler injeta os segredos do ambiente "ci" no docker compose
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN_CI }}
+        run: doppler run -- docker compose up -d backend db
+      - name: Aguardar backend ficar pronto
+        run: |
+          for i in {1..30}; do
+            curl -sf http://localhost:8000/api/health && break || sleep 2
+          done
+      - name: Rodar ZAP Baseline Scan
+        # Varredura passiva nos endpoints. Falha se encontrar issue de risco alto.
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: "http://localhost:8000"
+          fail_action: true
