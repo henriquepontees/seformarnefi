@@ -131,3 +131,36 @@ Estrutura completa entregue. Próximo passo é validar `doppler run -- docker co
 
 ### Observações
 14 testes passando (4 novos do OAuth, com mock de `exchange_code` e `validar_id_token`). Fluxo end-to-end validado: `GET /api/auth/login` responde 302 para o Keycloak com state válido. Usuário de teste pré-criado: `henrique` / `tcc123`.
+
+---
+
+## Sessão 4 — 12/05/2026
+
+### Arquivos criados
+| Arquivo | Caminho | Descrição |
+|---|---|---|
+| `APRESENTACAO.md` | `/` | Guia de apresentação do TCC com roteiro, demo e outputs reais capturados |
+| `legado.py` | `backend/apps/sso/` | **(branch `demo/vulneravel`)** módulo com 4 vulnerabilidades intencionais |
+| `test_vulneravel.py` | `backend/tests/` | **(branch `demo/vulneravel`)** testes que provam a exploração das falhas |
+
+### Arquivos editados
+| Arquivo | Caminho | O que mudou |
+|---|---|---|
+| `urls.py` | `backend/config/` | **(branch `demo/vulneravel`)** monta `legado_router` sob `/api/legado/` |
+| `changelog.md` | `.claude/` | Entrada da Sessão 4 |
+
+### Arquivos deletados
+— nenhum —
+
+### Decisões tomadas
+- Branch separada `demo/vulneravel` em vez de poluir a `main` — permite alternar com `git checkout` durante a apresentação
+- 4 vulnerabilidades cobrindo o tripé SAST + testes + DAST:
+  - Credenciais hardcoded (B105)
+  - MD5 para hash de senha (B324, HIGH)
+  - SQL injection via f-string (B608, MEDIUM)
+  - Endpoint admin sem autenticação vazando segredos
+- Testes que **passam** demonstrando que a exploração funciona — argumento didático: "testes não escritos = falhas não descobertas"
+- Outputs reais do Bandit/Pytest/curl capturados e colados em `APRESENTACAO.md` (em vez de outputs hipotéticos)
+
+### Observações
+Pipeline comparativo pronto: `main` passa nos 3 estágios (Bandit 0 issues), `demo/vulneravel` falha com 2 issues médios/altos no Bandit + 3 testes provando exploração viva. Exploit do endpoint admin retorna `db_password` e `api_key` ao curl, demonstrando o impacto.
