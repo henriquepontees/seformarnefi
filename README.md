@@ -3,56 +3,43 @@
 Parte prática do TCC: demonstrar que um pipeline de CI/CD com etapas de segurança detecta e bloqueia vulnerabilidades em um sistema SSO antes da produção.
 
 ## Stack
-Django Ninja · Vue 3 · PostgreSQL · OAuth 2.0 · Docker · GitHub Actions · Bandit · Pytest · OWASP ZAP · Doppler · ArgoCD
+Django Ninja · Vue 3 · PostgreSQL · OAuth 2.0 · Docker · GitHub Actions · Bandit · Pytest · OWASP ZAP · ArgoCD
 
 ## Como rodar localmente
 
-Pré-requisitos: Docker, Docker Compose, Doppler CLI.
+Pré-requisitos: Docker e Docker Compose.
 
 ```bash
-doppler login
-doppler setup           # selecionar projeto e ambiente "dev"
-doppler run -- docker compose up --build
+# 1. Criar o .env a partir do exemplo
+cp .env.example .env       # Linux/Mac
+copy .env.example .env     # Windows (cmd)
+
+# 2. Editar .env com valores reais
+
+# 3. Subir tudo
+docker compose up --build
 ```
 
 - Backend: http://localhost:8000/api/health
 - Frontend: http://localhost:5173
 
-## Doppler — gerenciamento de segredos
+## Variáveis de ambiente
 
-Doppler substitui os arquivos `.env` injetando variáveis no ambiente em tempo de execução.
+Todas as variáveis ficam no arquivo `.env` (não versionado). Veja [.env.example](.env.example) para o template.
 
-### Variáveis esperadas no projeto
 | Nome | Uso |
 |---|---|
 | `DJANGO_SECRET_KEY` | Chave do Django |
+| `DJANGO_DEBUG` | `true` em dev, `false` em produção |
 | `JWT_SECRET` | Segredo HMAC para assinar/validar JWT |
 | `POSTGRES_DB` | Nome do banco |
 | `POSTGRES_USER` | Usuário do banco |
 | `POSTGRES_PASSWORD` | Senha do banco |
 
-### Setup local
-```bash
-# 1. Instalar a CLI (Windows / Scoop)
-scoop install doppler
+### No GitHub Actions
+As mesmas variáveis devem existir em **Settings → Secrets and variables → Actions** com os mesmos nomes. O workflow gera um `.env` no runner a partir desses secrets antes de subir os containers.
 
-# 2. Autenticar
-doppler login
-
-# 3. Vincular este diretório a um projeto/ambiente Doppler
-doppler setup
-
-# 4. Rodar qualquer comando com os segredos injetados
-doppler run -- docker compose up
-doppler run -- python backend/manage.py migrate
-```
-
-### Setup no GitHub Actions
-1. Em Doppler: criar um **Service Token** para o ambiente `ci`.
-2. Em GitHub → Settings → Secrets and variables → Actions: adicionar `DOPPLER_TOKEN_CI`.
-3. O workflow já consome esse segredo no estágio ZAP via `dopplerhq/cli-action@v3`.
-
-Nenhum arquivo `.env` deve ser comitado em hipótese alguma.
+Nenhum arquivo `.env` deve ser comitado.
 
 ## ArgoCD — onde ele entra
 
@@ -74,8 +61,6 @@ Pipeline CI passa  ->  manifests Kubernetes atualizados em repo Git
 3. Criar `Application` no ArgoCD apontando para o repo de manifests.
 4. Adicionar ao final do workflow um job que atualiza a tag da imagem no repo de manifests — isso dispara o ArgoCD automaticamente.
 
-A escolha por GitOps garante que o estado do cluster é sempre auditável via histórico Git e que nenhum deploy acontece fora do fluxo controlado pelo pipeline de segurança.
-
 ## Estrutura
 
 ```
@@ -87,5 +72,6 @@ tcc-sso/
 │   ├── config/                 # settings, urls
 │   └── tests/
 ├── frontend/                   # Vue 3 + Vite
+├── .env.example                # Template das variáveis
 └── docker-compose.yml
 ```

@@ -9,8 +9,10 @@ venv/
 node_modules/
 dist/
 
-# Doppler
-.doppler/
+# Env
+.env
+.env.local
+.env.*.local
 
 # Editor
 .vscode/

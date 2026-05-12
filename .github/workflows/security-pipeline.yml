@@ -1,5 +1,6 @@
 # Pipeline DevSecOps — bloqueia o merge se qualquer estágio de segurança falhar.
 # Estágios sequenciais: Bandit (SAST) -> Pytest (testes) -> OWASP ZAP (DAST)
+# Segredos vêm de GitHub Secrets (mesmas chaves do .env local).
 name: security-pipeline
 
 on:
@@ -35,7 +36,7 @@ jobs:
       - name: Instalar dependências
         run: pip install -r backend/requirements.txt
       - name: Rodar testes
-        # Segredos de teste vêm dos GitHub Secrets ou do Doppler (preferido).
+        # Segredos de teste vêm dos GitHub Secrets do repositório.
         env:
           DJANGO_SECRET_KEY: ci-test-secret
           JWT_SECRET: ci-test-jwt
@@ -49,13 +50,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Instalar Doppler CLI
-        uses: dopplerhq/cli-action@v3
-      - name: Subir backend via Doppler + Docker Compose
-        # Doppler injeta os segredos do ambiente "ci" no docker compose
-        env:
-          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN_CI }}
-        run: doppler run -- docker compose up -d backend db
+      - name: Gerar .env a partir dos GitHub Secrets
+        # docker compose lê .env automaticamente; mantemos a mesma origem local/CI.
+        run: |
+          cat > .env <<EOF
+          DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          DJANGO_DEBUG=false
+          EOF
+      - name: Subir backend e db
+        run: docker compose up -d backend db
       - name: Aguardar backend ficar pronto
         run: |
           for i in {1..30}; do

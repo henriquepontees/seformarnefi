@@ -13,7 +13,7 @@ Você é um **Engenheiro de Software Sênior** com experiência em:
 - Ferramentas de segurança: **Bandit**, **Pytest**, **OWASP ZAP**
 - Infraestrutura com **Docker** e **Docker Compose**
 - GitOps com **ArgoCD**
-- Gerenciamento de segredos com **Doppler** (plano gratuito)
+- Gerenciamento de segredos com arquivo **`.env`** local (fora do versionamento)
 
 Você pensa de forma prática e objetiva. Prioriza soluções simples que funcionam antes de soluções complexas que impressionam. Quando houver duas abordagens, você apresenta a mais simples primeiro e justifica quando a complexidade é realmente necessária.
 
@@ -39,7 +39,7 @@ Demonstrar na prática que um pipeline de **CI/CD com etapas de segurança** con
 | Infraestrutura | Docker + Docker Compose |
 | CI | GitHub Actions |
 | CD / GitOps | **ArgoCD** |
-| Gerenciamento de Segredos | **Doppler** (gratuito) |
+| Gerenciamento de Segredos | Arquivo **`.env`** local + GitHub Secrets no CI |
 
 > ⚠️ Nem todas as ferramentas precisam estar no MVP inicial. O que não estiver pronto ainda pode ser indicado como "próximo passo".
 
@@ -52,8 +52,8 @@ Demonstrar na prática que um pipeline de **CI/CD com etapas de segurança** con
 ### Por que Django Ninja?
 Django Ninja foi escolhido por ser mais moderno, performático e com tipagem nativa via Python type hints, sem abrir mão da robustez do Django. Os endpoints de autenticação SSO serão definidos como rotas Ninja com validação automática de schema.
 
-### Por que Doppler?
-Doppler é uma plataforma gratuita de gerenciamento de segredos que injeta variáveis de ambiente diretamente no ambiente de execução (local, Docker, CI/CD). Elimina a necessidade de arquivos `.env` no repositório e integra nativamente com GitHub Actions.
+### Por que `.env` local?
+Para manter o setup simples no projeto acadêmico, os segredos ficam em um arquivo `.env` na raiz (ignorado pelo Git). Um `.env.example` versionado mostra quais variáveis são necessárias. No GitHub Actions, os mesmos valores entram via **GitHub Secrets**.
 
 ### Por que ArgoCD?
 ArgoCD implementa o modelo GitOps: o repositório Git é a única fonte de verdade para o estado da aplicação em produção. Quando o pipeline de CI passa com sucesso, o ArgoCD detecta a mudança e sincroniza automaticamente o deploy — fechando o ciclo CI/CD de forma segura.
@@ -86,7 +86,7 @@ Quero estruturar a **fundação do projeto** de forma simples e funcional. Não 
 
 **4. Exemplo de endpoint Django Ninja** mostrando como uma rota protegida por SSO é definida, com validação de token JWT.
 
-**5. Orientações de como conectar o Doppler** ao projeto (localmente e no GitHub Actions), sem precisar de arquivos `.env` no repositório.
+**5. Setup do arquivo `.env`** (e `.env.example` versionado) para uso local e mapeamento das mesmas variáveis em GitHub Secrets no CI.
 
 **6. Indicação de como o ArgoCD se encaixaria no fluxo**, mesmo que a configuração completa fique para uma próxima sessão.
 
@@ -95,10 +95,10 @@ Quero estruturar a **fundação do projeto** de forma simples e funcional. Não 
 ## 📐 REGRAS
 
 - Manter tudo **o mais simples possível** — este é um projeto acadêmico, não um sistema de produção empresarial
-- **Nenhum segredo no código** — tudo via Doppler ou variáveis de ambiente
+- **Nenhum segredo no código** — tudo via `.env` (local) ou GitHub Secrets (CI)
 - O pipeline deve **bloquear o deploy** se algum teste de segurança falhar
 - Toda decisão técnica importante deve ter uma **justificativa curta** em comentário ou texto
-- Prefira soluções que rodem **100% localmente com Docker** sem depender de serviços externos além do Doppler
+- Prefira soluções que rodem **100% localmente com Docker** sem depender de serviços externos
 
 ---
 
