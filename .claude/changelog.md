@@ -201,3 +201,36 @@ Pipeline comparativo pronto: `main` passa nos 3 estágios (Bandit 0 issues), `de
 
 ### Observações
 k3d não está instalado no host. K8S.md tem instruções de instalação via Chocolatey/Scoop. O `setup.ps1` automatiza todo o resto (cluster, imagens, ArgoCD, Application) em um comando depois que o k3d estiver disponível.
+
+---
+
+## Sessão 6 — 12/05/2026
+
+### Arquivos criados
+| Arquivo | Caminho | Descrição |
+|---|---|---|
+| `test_refresh.py` | `backend/tests/` | **(branch `demo/feature-segura`)** 6 testes do endpoint refresh |
+
+### Arquivos editados
+| Arquivo | Caminho | O que mudou |
+|---|---|---|
+| `jwt_utils.py` | `backend/apps/sso/` | **(branch `demo/feature-segura`)** função `renovar_token` |
+| `api.py` | `backend/apps/sso/` | **(branch `demo/feature-segura`)** endpoint `POST /api/auth/refresh` |
+| `vite.config.js` | `frontend/` | proxy `/api/* → http://backend:8000` (compose + k8s) |
+| `App.vue` | `frontend/src/` | usa URLs relativas em vez de hardcode da porta |
+| `k8s/04-backend.yaml` | `/` | `replicas` alterado para demo GitOps (1→2→1) |
+| `APRESENTACAO.md` | `/` | Reescrito com comparação das 3 branches e ato GitOps |
+| `COMANDOS.md` | `/` | Seção "Branches da apresentação" |
+| `changelog.md` | `.claude/` | Entrada da Sessão 6 |
+
+### Arquivos deletados
+— nenhum —
+
+### Decisões tomadas
+- **Branch `demo/feature-segura`** criada para ser o contraste positivo de `demo/vulneravel`: mesmo workflow de PR, resultados opostos no CI
+- Feature escolhida: `/api/auth/refresh` (renova JWT antes da expiração, revoga o antigo para mitigar replay) — relevante para SSO e exercitável via testes
+- Fix do hardcode `http://localhost:18000` no frontend: substituído por proxy do Vite + URLs relativas — código fica idêntico em compose e k8s
+- Replicas do backend voltadas para 1 na main para permitir refazer o demo GitOps na apresentação
+
+### Observações
+3 branches preparadas para a apresentação. `demo/feature-segura`: Bandit 0 issues, Pytest 20/20. `demo/vulneravel`: Bandit 2 issues (1 HIGH + 1 MED), 3 testes expondo exploits. Comparativo lado a lado documentado em `APRESENTACAO.md` com outputs reais capturados das ferramentas.

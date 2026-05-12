@@ -137,6 +137,25 @@ git commit -m "feat: ..."
 git push origin HEAD
 ```
 
+## 🌳 Branches da apresentação do TCC
+
+| Branch | O que tem |
+|---|---|
+| `main` | Estado estável, pipeline verde |
+| `demo/feature-segura` | PR limpo (refresh endpoint), pipeline verde, **mergeável** |
+| `demo/vulneravel` | PR com 4 vulnerabilidades, pipeline vermelho, **bloqueado** |
+
+```bash
+# Alternar entre branches durante a demo
+git checkout main
+git checkout demo/feature-segura
+git checkout demo/vulneravel
+
+# Apos trocar, sempre reinicie o backend para carregar o novo codigo
+docker compose restart backend     # se estiver no compose
+kubectl rollout restart deploy/backend -n tcc-sso   # se estiver no k8s
+```
+
 ## 🛡️ Pipeline CI — rodar localmente o que o GitHub Actions roda
 
 ```bash

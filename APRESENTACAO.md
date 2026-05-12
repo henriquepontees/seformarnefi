@@ -2,34 +2,36 @@
 
 > **Tema:** Modelos Preventivos de Quality Assurance para Mitigação de Vulnerabilidades em Sistemas Web com Single Sign-On
 >
-> **Argumento central:** um pipeline de CI/CD com etapas de segurança detecta e bloqueia vulnerabilidades antes que cheguem à produção.
+> **Argumento central:** um pipeline de CI/CD com etapas de segurança detecta e bloqueia vulnerabilidades antes que cheguem à produção — e libera PRs limpos sem intervenção humana.
 
 ---
 
-## 🧭 Roteiro sugerido (15-20 min)
+## 🧭 Roteiro sugerido (15-25 min)
 
 1. **Contexto e problema** (2 min) — por que QA preventiva em SSO
-2. **Stack escolhida** (2 min) — Django Ninja + Vue + Keycloak + Docker
+2. **Stack escolhida** (2 min) — Django Ninja + Vue + Keycloak + Docker + k8s + ArgoCD
 3. **Fluxo SSO funcionando** (3 min) — demo ao vivo do login OAuth
 4. **Pipeline DevSecOps** (3 min) — 3 estágios: SAST → testes → DAST
-5. **Demo "Sem QA vs Com QA"** (5 min) — este é o coração da apresentação
-6. **Resultados e conclusões** (2-3 min)
+5. **Demo do tripé — três cenários de PR** (8 min) ⭐ **coração da apresentação**
+6. **GitOps com ArgoCD** (3 min) — push pra Git → cluster sincroniza sozinho
+7. **Resultados e conclusões** (2-3 min)
 
 ---
 
-## 🎬 Demo ao vivo — duas branches, dois cenários
+## 🎬 As três branches preparadas para a apresentação
 
-O repositório tem duas branches preparadas para a apresentação:
-
-| Branch | Cenário | O que esperar |
-|---|---|---|
-| `main` | **Com QA aplicada** | Bandit: 0 issues · Pytest: 14/14 · ZAP: clean |
-| `demo/vulneravel` | **Sem QA aplicada** | Bandit: 2 issues · Pytest: 17/17 (3 provando exploit) · ZAP: vazamento de dados |
+| Branch | Cenário | Bandit | Pytest | Pipeline | Mergeavel? |
+|---|---|---|---|---|---|
+| `main` | Estado estável atual | 0 issues | 14/14 | ✅ verde | — |
+| `demo/feature-segura` | **PR limpo** — adiciona endpoint `/api/auth/refresh` com revogação | 0 issues | **20/20** (+6 novos) | ✅ verde | ✅ **sim** |
+| `demo/vulneravel` | **PR ruim** — código legado com 4 vulnerabilidades | **2 issues (HIGH+MED)** | 17/17 (3 provando exploit) | ❌ vermelho | ❌ **não** |
 
 Comando para alternar:
 ```bash
-git checkout main             # versão segura
-git checkout demo/vulneravel  # versão com falhas intencionais
+git checkout main
+git checkout demo/feature-segura
+git checkout demo/vulneravel
+docker compose restart backend   # backend recarrega com o codigo da branch
 ```
 
 ---
@@ -37,25 +39,17 @@ git checkout demo/vulneravel  # versão com falhas intencionais
 ## 📋 Pré-demo — checklist
 
 ```bash
-# 1. Estar na pasta do projeto
 cd C:\Users\henri\Projetos\tcc-sso
+docker compose up -d              # ou .\k8s\setup.ps1 se for usar k8s
+docker compose ps                 # confirmar 5 containers up
 
-# 2. Containers no ar
-docker compose up -d
-docker compose ps
-
-# 3. Smoke test rápido
-curl http://localhost:18000/api/health   # {"status": "ok"}
-
-# 4. Vue acessível
-# abrir http://localhost:5173 no navegador
+curl http://localhost:18000/api/health    # {"status": "ok"}
+# Abrir http://localhost:5173 no navegador
 ```
-
-Se algum container estiver parado: `docker compose up -d` resolve.
 
 ---
 
-## 1️⃣ Demo do fluxo SSO (com QA — branch `main`)
+## 1️⃣ Demo do fluxo SSO (branch `main`)
 
 ```bash
 git checkout main
@@ -77,105 +71,92 @@ git checkout main
 
 ---
 
-## 2️⃣ Demo "Com QA" — pipeline na branch `main`
+## 2️⃣ Demo do tripé — comparação de 3 PRs
 
-### Estágio 1 — Bandit (SAST)
+A força do TCC está aqui: **mostrar que o pipeline aceita o bom e rejeita o ruim, sem revisor humano**.
+
+### 🟢 Cenário A — PR limpo (`demo/feature-segura`)
+
+> Um desenvolvedor implementa o endpoint `/api/auth/refresh` para renovar JWTs antes de expirarem, revogando o token antigo no mesmo passo (mitigação de replay).
+
+```bash
+git checkout demo/feature-segura
+docker compose restart backend
+```
+
+**Estágio 1 — Bandit (SAST):**
 ```bash
 docker compose exec backend bandit -r apps/ -ll -ii
 ```
-**Saída esperada:**
 ```
-Test results:
-  No issues identified.
+Run metrics:
+    Total issues (by severity):
+        High: 0  |  Medium: 0  |  Low: 0
 ```
 
-### Estágio 2 — Pytest
+**Estágio 2 — Pytest:**
 ```bash
 docker compose exec backend pytest -v
 ```
-**Saída esperada:** `14 passed`
-
-### Estágio 3 — ZAP (resumo)
-No CI o `zaproxy/action-baseline` faz varredura passiva. Localmente daria pra simular com:
-```bash
-docker run --rm --network tcc-sso_default \
-  zaproxy/zap-stable zap-baseline.py -t http://backend:8000
 ```
+======================== 20 passed in 2.22s ========================
+```
+Os 6 testes novos cobrem: happy path, sem auth, assinatura inválida, expirado, revogação do antigo, extensão da expiração.
 
-**Conclusão:** main passaria nos 3 estágios → deploy autorizado.
+➡️ **Pipeline VERDE** → PR pode ser mergeado.
 
 ---
 
-## 3️⃣ Demo "Sem QA" — pipeline na branch `demo/vulneravel`
+### 🔴 Cenário B — PR com vulnerabilidades (`demo/vulneravel`)
+
+> Mesma situação: um desenvolvedor abre um PR. Mas dessa vez introduziu um módulo "legado" com vulnerabilidades reais.
 
 ```bash
 git checkout demo/vulneravel
-docker compose restart backend   # backend recarrega com o novo código
+docker compose restart backend
 ```
 
-A branch adiciona um módulo `apps/sso/legado.py` com **vulnerabilidades intencionais**:
+**Vulnerabilidades injetadas:**
 
-| Vulnerabilidade | Tipo | Quem detecta |
+| Vulnerabilidade | Tipo | Detectado por |
 |---|---|---|
-| Senha de banco hardcoded (`admin123`) | Credencial em código | Bandit B105 / Pytest |
-| API key hardcoded (`sk_live_*`) | Credencial em código | Bandit / Pytest |
-| `hashlib.md5()` para senha | Crypto quebrado | **Bandit B324 (HIGH)** |
-| `f"SELECT ... WHERE name = '{nome}'"` | SQL Injection | **Bandit B608 (MEDIUM)** |
-| `/api/legado/admin/dump` sem autenticação | Auth bypass | Pytest / DAST |
+| Senha hardcoded (`admin123`) | Credencial em código | Pytest |
+| API key hardcoded (`sk_live_*`) | Credencial em código | Pytest |
+| `hashlib.md5()` para senha | Crypto quebrado | **Bandit B324 HIGH** |
+| SQL injection via `f"WHERE name = '{nome}'"` | SQLi | **Bandit B608 MEDIUM** |
+| `/api/legado/admin/dump` sem auth | Auth bypass | Pytest / DAST |
 
-### Estágio 1 — Bandit captura na branch vulnerável
-
+**Estágio 1 — Bandit captura:**
 ```bash
 docker compose exec backend bandit -r apps/ -ll -ii
 ```
-
-**Saída real capturada:**
 ```
 >> Issue: [B324:hashlib] Use of weak MD5 hash for security.
    Severity: High   Confidence: High
-   CWE: CWE-327
    Location: apps/sso/legado.py:28:11
-27    """
-28        return hashlib.md5(senha.encode()).hexdigest()
 
 >> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector
    Severity: Medium   Confidence: Medium
-   CWE: CWE-89
    Location: apps/sso/legado.py:39:20
-38        # Concatenacao direta de input nao sanitizado na query
-39        c.execute(f"SELECT id, username FROM auth_user WHERE first_name = '{nome}'")
 
-Run metrics:
-    Total issues (by severity):
-        High: 1
-        Medium: 1
-        Low: 1
+Total issues (by severity):
+    High: 1  |  Medium: 1  |  Low: 1
 ```
 
-➡️ **Pipeline falha aqui.** Sem QA, esse código iria pra produção.
-
-### Estágio 2 — Pytest demonstra exploração
-
+**Estágio 2 — Pytest expõe o exploit:**
 ```bash
 docker compose exec backend pytest tests/test_vulneravel.py -v
 ```
-
-**Saída real capturada:**
 ```
 tests/test_vulneravel.py::test_endpoint_admin_acessivel_sem_autenticacao PASSED
 tests/test_vulneravel.py::test_md5_usado_para_senhas                    PASSED
 tests/test_vulneravel.py::test_credenciais_hardcoded_no_codigo          PASSED
 ```
 
-> **Importante:** esses testes PASSAM. Eles documentam que a vulnerabilidade existe e é explorável. Em um projeto sério, eles seriam o ponto de partida para corrigir a falha — depois da correção, os testes seriam reescritos para verificar que a exploração não funciona mais.
-
-### Exploit ao vivo no navegador / curl
-
+**Exploit ao vivo** (para impacto visual):
 ```bash
 curl http://localhost:18000/api/legado/admin/dump
 ```
-
-**Saída real capturada:**
 ```json
 {
     "db_password": "admin123",
@@ -184,54 +165,86 @@ curl http://localhost:18000/api/legado/admin/dump
 }
 ```
 
-➡️ Qualquer pessoa com a URL recebe credenciais e API key.
-
-### Estágio 3 — ZAP (varredura dinâmica)
-
-ZAP detectaria:
-- Endpoint expondo dados sensíveis em `/api/legado/admin/dump`
-- Falta de headers de segurança (X-Frame-Options, CSP)
-- Possível disclosure via mensagens de erro detalhadas (DEBUG=true)
+➡️ **Pipeline VERMELHO** → PR bloqueado, merge impossível.
 
 ---
 
-## 4️⃣ Comparação lado a lado
+### 📊 Comparação lado a lado
 
-| Critério | Sem QA (`demo/vulneravel`) | Com QA (`main`) |
-|---|---|---|
-| Vulnerabilidades em produção | 4+ | 0 detectadas |
-| Tempo entre commit e descoberta | meses (auditoria externa) | < 1 minuto (CI) |
-| Custo de remediação | alto (incidente, multa LGPD) | baixo (PR rejeitado) |
-| Confiança do time | reativa | preditiva |
+```
+                     demo/feature-segura      demo/vulneravel
+                     ────────────────────     ────────────────────
+Bandit               0 issues   ✅              2 issues (1 H, 1 M)  ❌
+Pytest               20/20      ✅              17/17 (3 expoem falha)
+Exploit possivel?    nao        ✅              SIM — vaza segredos   ❌
+Merge para main      LIBERADO   ✅              BLOQUEADO            ❌
+Tempo de feedback    < 1 min                   < 1 min
+```
+
+> **A diferença não é o tamanho do PR ou o tempo do CI — é o gate automatizado.** O mesmo pipeline aprovou um, bloqueou o outro, sem revisor humano.
 
 ---
 
-## 5️⃣ Pontos para o examinador
+## 3️⃣ GitOps com ArgoCD (deploy automatizado)
+
+Depois que o CI verde aprova o PR e o merge é feito em `main`, o ArgoCD detecta a mudança nos manifestos Kubernetes e sincroniza o cluster automaticamente.
+
+```bash
+# Pre-condicao: cluster k3d + ArgoCD instalados (.\k8s\setup.ps1)
+kubectl get application tcc-sso -n argocd -w
+# main: SYNC STATUS = Synced, HEALTH = Healthy
+```
+
+**Demonstrar a sincronização ao vivo:**
+1. Editar `k8s/04-backend.yaml`: `replicas: 1` → `replicas: 2`
+2. `git commit + git push origin main`
+3. Em até 3min (ou forçando via UI): ArgoCD detecta `OutOfSync`
+4. Auto-sync dispara → `kubectl apply` automático
+5. `kubectl get pods -n tcc-sso` mostra 2 pods de backend
+
+**Acessar a UI do ArgoCD:** https://localhost:28443 (admin / senha do setup)
+
+> **Argumento:** o Git é a única fonte de verdade. Qualquer mudança no cluster fora do Git é desfeita automaticamente (`selfHeal: true`). Auditoria total via `git log`.
+
+---
+
+## 4️⃣ Pontos para o examinador
 
 **Por que cada ferramenta complementa a outra?**
 
-- **Bandit (SAST)** lê o código sem executar — pega padrões estáticos como `f"SELECT...{var}"` ou `hashlib.md5`. É rápido e barato, mas tem falsos positivos e não enxerga lógica em tempo de execução.
-- **Pytest** executa fluxos reais — pega bugs lógicos (auth bypass, permissões erradas) que SAST não consegue ver. Depende de o time escrever testes que cubram os caminhos críticos.
+- **Bandit (SAST)** lê o código sem executar — pega padrões estáticos como `f"SELECT...{var}"` ou `hashlib.md5`. Rápido e barato, mas tem falsos positivos e não enxerga lógica em tempo de execução.
+- **Pytest** executa fluxos reais — pega bugs lógicos (auth bypass, permissões erradas) que SAST não consegue ver. Depende de o time escrever testes cobrindo os caminhos críticos.
 - **OWASP ZAP (DAST)** ataca a aplicação rodando — pega problemas de configuração (headers, redirects, CORS) e respostas inseguras que só aparecem em runtime. Complementa SAST com a visão de "como o atacante interage com a aplicação".
 
-**Argumento defensável:** nenhuma ferramenta sozinha resolve. A combinação SAST+Testes+DAST cobre os 3 ângulos: código → comportamento → superfície exposta.
+**Por que GitOps fecha o ciclo?**
+- CI verde decide *se pode subir*, GitOps decide *quando subir*. Operações deixam de ser manuais.
+- `selfHeal` impede que mudanças via `kubectl` direto sobrevivam — o cluster sempre obedece ao Git.
+
+**Argumento defensável:** nenhuma ferramenta sozinha resolve. A combinação **SAST + Testes + DAST + GitOps** cobre 4 ângulos:
+- *código* (estático)
+- *comportamento* (testes funcionais)
+- *superfície exposta* (runtime)
+- *deployment* (versionado)
 
 ---
 
-## 🗂️ Referências rápidas durante a apresentação
+## 🗂️ Referências durante a apresentação
 
 - [README.md](README.md) — visão geral
 - [COMANDOS.md](COMANDOS.md) — comandos do dia a dia
-- [.github/workflows/security-pipeline.yml](.github/workflows/security-pipeline.yml) — definição dos 3 estágios
-- [backend/apps/sso/api.py](backend/apps/sso/api.py) — endpoints do SSO
-- Branch `demo/vulneravel` — `git checkout demo/vulneravel`
+- [K8S.md](K8S.md) — setup do cluster + ArgoCD
+- [.github/workflows/security-pipeline.yml](.github/workflows/security-pipeline.yml) — pipeline CI
+- [backend/apps/sso/api.py](backend/apps/sso/api.py) — endpoints SSO
+- Branches: `main`, `demo/feature-segura`, `demo/vulneravel`
 
 ---
 
 ## 🧹 Pós-demo — voltar à main
 
-Não esquecer no final da apresentação:
 ```bash
 git checkout main
 docker compose restart backend
+# se rodou k8s:
+k3d cluster delete tcc-sso        # desfaz o cluster (opcional)
+docker compose up -d              # volta ao ambiente dev original
 ```
